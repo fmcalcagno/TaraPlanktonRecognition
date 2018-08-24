@@ -21,7 +21,7 @@ from argparse import ArgumentParser
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-
+from torch.optim.lr_scheduler import MultiStepLR
 
 import InputInformation as Input
 from C3DModel import C3D
@@ -42,8 +42,7 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	device = torch.device("cuda" if use_cuda else "cpu")
 	
 	pwargs = {'rootDir': "../taraImages/",  'channels':1, 'timeDepth':16,
-             'xSize':112, 'ySize':112, 'startFrame':0, 'endFrame':15,'numFilters':3,'filters':[2,3,4], 
-             'transfpos':2}
+             'xSize':112, 'ySize':112, 'startFrame':0, 'endFrame':15,'numFilters':3,'filters':[2,3,4]} 
 	kwargs = {'num_workers': 4, 'pin_memory': True} if use_cuda else {}
 		
 	batchargs = {'train_batch_size':train_batch_size,'val_batch_size':val_batch_size }
@@ -67,9 +66,11 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 		c3d = nn.DataParallel(c3d, device_ids=range(torch.cuda.device_count()))
 		cudnn.benchmark = True	
 	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr,weight_decay=0.0001)
+
+	scheduler = MultiStepLR(optimizer, milestones=[5,10,15,20], gamma=0.1)
 	
 	model=c3d
-	train_loader, val_loader = planctonDataLoaders.get_data_loaders(trainlist,testlist,hierclasses,classes_transf,pwargs,kwargs,**batchargs)
+	train_loader, val_loader = planctonDataLoaders.get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwargs,kwargs,**batchargs)
 	writer = UtilsPL.create_summary_writer(model, train_loader, log_dir)
 	trainer = create_supervised_trainer(model, optimizer,UtilsPL.myLoss, device=device)
 	

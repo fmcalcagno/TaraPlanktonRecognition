@@ -154,8 +154,7 @@ class RandomBrightner(object):
     def __call__(self, sample):
         image= sample
         if random.randint(0,1)==1:
-            alpha = random.uniform(0.70, self.var)
-            print("alpha:",alpha)
+            alpha = random.uniform(0.9, self.var)
             c,f,h, w = image.shape
             image=image*alpha
 
