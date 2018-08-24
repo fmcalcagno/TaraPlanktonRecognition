@@ -88,7 +88,7 @@ class RandomRotate(object):
     """ Rotate 90/180/270 degrees all filters"""
     def __init__(self):
         
-        self.degrees=list([0,90,180,270])
+        self.degrees=list([0,0,0,90,180,270])
         
     
     def __call__ (self,sample):
@@ -120,7 +120,7 @@ class RandomRotate(object):
             
 class RandomFlip(object):        
     def __init__(self):
-        self.direction=list(["Nothing","LRDirection","UDDirection"])
+        self.direction=list(["Nothing","Nothing","LRDirection","UDDirection"])
         
     def __call__ (self,sample):
         c,f,h, w = sample.shape
@@ -140,6 +140,27 @@ class RandomFlip(object):
                 for f_i in range(f):
                     frames[c_i,f_i,:,:]= np.flipud(sample[c_i,f_i,:,:])
             return frames
+        
+class RandomBrightner(object):
+    """Brightness the 3 filters 
+    
+    Args:
+        output_size (tuple or int): Desired output size of each frame of each filter. If int, square crop
+            is made.
+    """
+    def __init__(self,var):
+        self.var = var
+    
+    def __call__(self, sample):
+        image= sample
+        if random.randint(0,1)==1:
+            alpha = random.uniform(0.70, self.var)
+            print("alpha:",alpha)
+            c,f,h, w = image.shape
+            image=image*alpha
+
+        return image
+    
             
         
                 

@@ -2,7 +2,7 @@ import torch
 import os
 from torch.utils.data import Dataset
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFile
 
 class plankton3DDataset(Dataset):
     """Dataset Class for loading Gif into a 3D Tensor"""
@@ -42,6 +42,7 @@ class plankton3DDataset(Dataset):
         self.filters=filters
         self.classes_transf=classes_transf
         self.transfpos=transfpos
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
 
     def __len__(self):
         return len(self.gifList)
