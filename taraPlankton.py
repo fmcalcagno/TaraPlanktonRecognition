@@ -31,12 +31,13 @@ import UtilsPL
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import CategoricalAccuracy, Loss, Recall, Precision
 from ignite.metrics.metric import Metric
+from ignite.handlers import ModelCheckpoint
 from MyAccuracies import myCategoricalAccuracy,myRecall,myPrecision
 
 
 import warnings
 
-def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, log_dir,classif):
+def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, log_dir,classif,checkpoint_model_dir,checkpoint_interval):
 	
 	use_cuda =  torch.cuda.is_available()
 	device = torch.device("cuda" if use_cuda else "cpu")
@@ -114,7 +115,14 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 		writer.add_scalar("valdation/avg_accuracy", avg_accuracy, engine.state.epoch)
 		writer.add_scalar("valdation/recall", avg_recall, engine.state.epoch)
 		writer.add_scalar("valdation/precision", avg_precision, engine.state.epoch)
-		
+	
+	checkpoint_handler = ModelCheckpoint(checkpoint_model_dir, 'checkpoint',
+                                     save_interval=checkpoint_interval,
+                                     n_saved=10, require_empty=False, create_dir=True)
+
+	trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler,
+                          to_save={'net': model})
+
 	trainer.run(train_loader, max_epochs=epochs)
 	writer.close()
 
@@ -143,9 +151,13 @@ if __name__ == "__main__":
                         help="log directory for Tensorboard log output")
 	parser.add_argument('--classif', type=int, default=2,
                         help='Type of Classification (default:2 (156 Classes), 0:(2 Classes)')
+	parser.add_argument("--checkpoint_model_dir", type=str, default='../tmp/checkpoints',
+                                  help="path to folder where checkpoints of trained models will be saved")
+	parser.add_argument("--checkpoint_interval", type=int, default=1,
+                                  help="number of batches after which a checkpoint of trained model will be created")
 	
 
 	args = parser.parse_args()
 
 	run(args.batch_size, args.val_batch_size, args.epochs, args.lr, args.momentum,
-        args.log_interval, args.log_dir,args.classif)
+        args.log_interval, args.log_dir,args.classif,args.checkpoint_model_dir,args.checkpoint_interval)

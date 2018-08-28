@@ -26,7 +26,8 @@ def getweights(trainlist, classes_transf,transfpos):
 
 
 def get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwargs,kwargs,train_batch_size, val_batch_size):
-
+    trainlist=trainlist.sample(1000, replace=False)
+    testlist=testlist.sample(100, replace=False)
     colmean=[252.9242,251.4343,156.3816]
     colstddev=[7.7102,11.3070,66.3204]
     
@@ -47,15 +48,17 @@ def get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwa
                                 Normalize(colmeanval,colstddevval),
                                 ToTensor()])
 
-    weights = getweights(trainlist, classes_transf,transfpos)
-    weights = np.clip(weights,0.02,0.2)
+    #weights = getweights(trainlist, classes_transf,transfpos)
+    #weights = np.clip(weights,0.02,0.2)
 
 
-    train_sampler = WeightedRandomSampler(weights, len(trainlist))
+    #train_sampler = WeightedRandomSampler(weights, len(trainlist))
 
     train_loader = data.DataLoader(plankton3DDataset(gifList=trainlist,
                         keys=hierclasses,classes_transf=classes_transf,transform=compose,transfpos=transfpos,**pwargs), 
-                batch_size=train_batch_size,  sampler=train_sampler,
+                batch_size=train_batch_size,  
+		shuffle=True,
+		#sampler=train_sampler,
                 collate_fn=UtilsPL.ucf_collate, **kwargs)
 
 #    train_loader = data.DataLoader(plankton3DDataset(gifList=trainlist,
