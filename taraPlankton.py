@@ -32,7 +32,7 @@ from ignite.engine import Events, create_supervised_trainer, create_supervised_e
 from ignite.metrics import CategoricalAccuracy, Loss, Recall, Precision
 from ignite.metrics.metric import Metric
 from ignite.handlers import ModelCheckpoint
-from paramscheduler import CosineAnnealingScheduler, LinearScheduler,StepScheduler
+#from paramscheduler import CosineAnnealingScheduler, LinearScheduler,StepScheduler
 
 from MyAccuracies import myCategoricalAccuracy,myRecall,myPrecision
 
@@ -69,7 +69,7 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr,weight_decay=0.0001)
 	
 	
-	handlers= [(StepScheduler, 'lr',lr,lr,1,5)]
+	#handlers= [(StepScheduler, 'lr',lr,lr,1,5)]
 	lrs=[]
 	model=c3d
 	train_loader, val_loader = planctonDataLoaders.get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwargs,kwargs,**batchargs)
@@ -93,11 +93,11 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 				  "".format(engine.state.epoch, iter, len(train_loader), engine.state.output))
 			writer.add_scalar("training/loss", engine.state.output, engine.state.iteration)
 	
-	for handler_args in handlers:
-		(scheduler_cls, param_name, start_value, end_value, cycle_mult,cycle_siz) = handler_args
-		handler = scheduler_cls(optimizer, param_name, start_value, end_value, cycle_size= cycle_siz,
-			    cycle_mult=cycle_mult,save_history=True)
-	trainer.add_event_handler(Events.ITERATION_COMPLETED, handler)
+	#for handler_args in handlers:
+	#	(scheduler_cls, param_name, start_value, end_value, cycle_mult,cycle_siz) = handler_args
+	#	handler = scheduler_cls(optimizer, param_name, start_value, end_value, cycle_size= cycle_siz,
+	#		    cycle_mult=cycle_mult,save_history=True)
+	#trainer.add_event_handler(Events.ITERATION_COMPLETED, handler)
 	trainer.add_event_handler(Events.ITERATION_COMPLETED, save_lr)
  
 	@trainer.on(Events.EPOCH_COMPLETED)
@@ -147,12 +147,12 @@ if __name__ == "__main__":
 	
 	parser = ArgumentParser()
 	
-	parser.add_argument('--batch_size', type=int, default=15,
-                        help='input batch size for training (default: 15)')
-	parser.add_argument('--val_batch_size', type=int, default=15,
-                        help='input batch size for validation (default: 15)')
+	parser.add_argument('--batch_size', type=int, default=20,
+                        help='input batch size for training (default: 20)')
+	parser.add_argument('--val_batch_size', type=int, default=20,
+                        help='input batch size for validation (default: 20)')
 	parser.add_argument('--epochs', type=int, default=1,
-                        help='number of epochs to train (default: 10)')
+                        help='number of epochs to train (default: 1)')
 	parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate (default: 0.001)')
 	parser.add_argument('--momentum', type=float, default=0.9,
