@@ -32,6 +32,8 @@ from ignite.engine import Events, create_supervised_trainer, create_supervised_e
 from ignite.metrics import CategoricalAccuracy, Loss, Recall, Precision
 from ignite.metrics.metric import Metric
 from ignite.handlers import ModelCheckpoint
+from paramscheduler import CosineAnnealingScheduler, LinearScheduler,StepScheduler
+
 from MyAccuracies import myCategoricalAccuracy,myRecall,myPrecision
 
 
@@ -54,8 +56,6 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	testset="../plancton-test.csv"
 	#Type of classification:   2, 13 or 156 classes
 	transfpos=classif
-	#epochs=1
-	#log_interval=10000
 
 	trainlist,testlist,hierclasses,classes_transf,outputsize=Input.inputInformation(trainset,testset,transfpos)
 	print("Starting training for  # Images: {} epochs: {}, batch size: {}, lr: {:.4f}, Output Classes: {}, using: {}"
@@ -67,9 +67,10 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 		c3d = nn.DataParallel(c3d, device_ids=range(torch.cuda.device_count()))
 		cudnn.benchmark = True	
 	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr,weight_decay=0.0001)
-
-	scheduler = MultiStepLR(optimizer, milestones=[5,10,15,20], gamma=0.1)
 	
+	
+	handlers= [(StepScheduler, 'lr',lr,lr,1,5)]
+	lrs=[]
 	model=c3d
 	train_loader, val_loader = planctonDataLoaders.get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwargs,kwargs,**batchargs)
 	writer = UtilsPL.create_summary_writer(model, train_loader, log_dir)
@@ -81,6 +82,8 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
                                                  'recall': myRecall(True),
                                                  'precision': myPrecision(True)},
                                         device=device)
+	def save_lr(engine):
+	        lrs.append(optimizer.param_groups[0]['lr'])
 	
 	@trainer.on(Events.ITERATION_COMPLETED)
 	def log_training_loss(engine):
@@ -89,17 +92,26 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 			print("Epoch[{}] Iteration[{}/{}] Loss: {:.2f}"
 				  "".format(engine.state.epoch, iter, len(train_loader), engine.state.output))
 			writer.add_scalar("training/loss", engine.state.output, engine.state.iteration)
-
+	
+	for handler_args in handlers:
+		(scheduler_cls, param_name, start_value, end_value, cycle_mult,cycle_siz) = handler_args
+		handler = scheduler_cls(optimizer, param_name, start_value, end_value, cycle_size= cycle_siz,
+			    cycle_mult=cycle_mult,save_history=True)
+	trainer.add_event_handler(Events.ITERATION_COMPLETED, handler)
+	trainer.add_event_handler(Events.ITERATION_COMPLETED, save_lr)
+ 
 	@trainer.on(Events.EPOCH_COMPLETED)
 	def log_training_results(engine):
 		evaluator.run(train_loader)
 		metrics = evaluator.state.metrics
 		avg_accuracy = metrics['accuracy']
 		avg_cel = metrics['crossEntropyLoss']
-		print("Training Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}"
-			  .format(engine.state.epoch, avg_accuracy, avg_cel))
+		learningrate=optimizer.param_groups[0]['lr']
+		print("Training Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f} Learning Rate: {:.7f}"
+			  .format(engine.state.epoch, avg_accuracy, avg_cel, learningrate))
 		writer.add_scalar("training/avg_loss", avg_cel, engine.state.epoch)
 		writer.add_scalar("training/avg_accuracy", avg_accuracy, engine.state.epoch)
+		writer.add_scalar("training/learning_rate", learningrate, engine.state.epoch)
 
 	@trainer.on(Events.EPOCH_COMPLETED)
 	def log_validation_results(engine):
