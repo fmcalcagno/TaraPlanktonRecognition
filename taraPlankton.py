@@ -45,7 +45,7 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	device = torch.device("cuda" if use_cuda else "cpu")
 	
 	pwargs = {'rootDir': "../taraImages/",  'channels':1, 'timeDepth':16,
-             'xSize':112, 'ySize':112, 'startFrame':0, 'endFrame':15,'numFilters':3,'filters':[2,3,4]} 
+             'xSize':112, 'ySize':112, 'startFrame':0, 'endFrame':15,'numFilters':5,'filters':[0,1,2,3,4]} 
 	kwargs = {'num_workers': 4, 'pin_memory': True} if use_cuda else {}
 		
 	batchargs = {'train_batch_size':train_batch_size,'val_batch_size':val_batch_size }
@@ -66,7 +66,7 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 		c3d.cuda()
 		c3d = nn.DataParallel(c3d, device_ids=range(torch.cuda.device_count()))
 		cudnn.benchmark = True	
-	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr,weight_decay=0.0001)
+	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr, weight_decay=0.0001)
 	
 	
 	handlers= [(StepScheduler, 'lr',lr,lr,1,5)]
@@ -155,8 +155,8 @@ if __name__ == "__main__":
 	parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate (default: 0.001)')
 	parser.add_argument('--momentum', type=float, default=0.9,
-                        help='SGD momentum (default: 0.9)')
-	parser.add_argument('--log_interval', type=int, default=100,
+                        help='Momentum (default: 0.9)')
+	parser.add_argument('--log_interval', type=int, default=1000,
                         help='how many batches to wait before logging training status')
 	parser.add_argument("--log_dir", type=str, default="../logs/",
                         help="log directory for Tensorboard log output")
