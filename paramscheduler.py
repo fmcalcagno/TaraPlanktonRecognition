@@ -88,6 +88,9 @@ class StepScheduler(ParamScheduler):
 		self.cycle = 0
 
 	def get_param(self):
-		cycle_progress = 10 ** ( self.event_index // self.cycle_size ) 
-		return self.start_value/cycle_progress
+                cycle_progress = 10 ** ( self.event_index // self.cycle_size )
+                print("Start Value:{}, Cycle_Proress:{}".format( self.start_value , cycle_progress))
+                res= self.start_value / cycle_progress
+                
+                return res
 
