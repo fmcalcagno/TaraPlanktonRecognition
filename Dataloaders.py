@@ -8,22 +8,6 @@ import pandas as pd
 import numpy as np
 from  torch.utils.data.sampler import  WeightedRandomSampler
 
-def getweights(trainlist, classes_transf,transfpos):
-    vec=[]
-    for row in trainlist.values:
-        filex,folder,typeplan=row
-        hier1,hier2,hier3=classes_transf[folder]
-        vec.append((filex,hier1,hier2,hier3))
-    total=len(vec)
-    hierarchies=pd.DataFrame.from_records(vec,columns=("filex","hier1","hier2","hier3"))
-
-    if transfpos==0:
-        return (hierarchies.sort_values('hier1').groupby('hier1').agg(['count']).iloc[:,1]/total).as_matrix()
-    elif transfpos==1:
-        return (hierarchies.sort_values('hier2').groupby('hier2').agg(['count']).iloc[:,1]/total).as_matrix()
-    else:
-        return (hierarchies.sort_values('hier3').groupby('hier3').agg(['count']).iloc[:,1]/total).as_matrix()
-
 
 def get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwargs,kwargs,train_batch_size, val_batch_size):
     #trainlist=trainlist.sample(1000, replace=False)
@@ -37,19 +21,21 @@ def get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwa
     colstddevval=[15.8342,13.6886,7.9116,11.3310,66.1270]
     
 
-    compose=transforms.Compose([Rescale(150),
-                                RandomCrop(112),
+    compose=transforms.Compose([Rescale(200),
+                                #RandomCrop(112),
                                 RandomRotate(),
                                 RandomFlip(),
 				RandomBrightner(1),
                                 Normalize(colmean,colstddev),
                                 ToTensor()])
 
-    composeval=transforms.Compose([Rescale(112),
+    composeval=transforms.Compose([Rescale(200),
                                 Normalize(colmeanval,colstddevval),
                                 ToTensor()])
 
 
+    
+    
     train_loader = data.DataLoader(plankton3DDataset(gifList=trainlist,
                         keys=hierclasses,classes_transf=classes_transf,transform=compose,transfpos=transfpos,**pwargs), 
                 batch_size=train_batch_size,  

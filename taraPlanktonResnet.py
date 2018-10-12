@@ -12,7 +12,7 @@ Usage:
     ```
     Run the example:
     ```bash
-    python taraPlankton.py --log_dir=/tmp/tensorboard_logs
+    python taraPlanktonResnet.py --log_dir=/tmp/tensorboard_logs
     ```
 """
 
@@ -24,7 +24,9 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import MultiStepLR
 
 import InputInformation as Input
-from C3DModel import C3D
+import resnet
+import densenet
+import resnext
 import Dataloaders as planctonDataLoaders
 import UtilsPL
 
@@ -43,9 +45,8 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	
 	use_cuda =  torch.cuda.is_available()
 	device = torch.device("cuda" if use_cuda else "cpu")
-	
-	pwargs = {'rootDir': "../taraImages/",  'channels':1, 'timeDepth':16,
-             'xSize':112, 'ySize':112, 'startFrame':0, 'endFrame':15,'numFilters':5,'filters':[0,1,2,3,4]} 
+	pwargs = {'rootDir': "../taraImages/",  'channels':1, 'timeDepth':20,
+                'xSize':200, 'ySize':200, 'startFrame':0, 'endFrame':19,'numFilters':5,'filters':[0,1,2,3,4]} 
 	kwargs = {'num_workers': 4, 'pin_memory': True} if use_cuda else {}
 		
 	batchargs = {'train_batch_size':train_batch_size,'val_batch_size':val_batch_size }
@@ -57,19 +58,24 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	#Type of classification:   2, 13 or 156 classes
 	transfpos=classif
 
+
 	trainlist,testlist,hierclasses,classes_transf,outputsize=Input.inputInformation(trainset,testset,transfpos)
+	#trainlist,testlist=trainlist[:100],testlist[:100]
+
 	print("Starting training for  # Images: {} epochs: {}, batch size: {}, lr: {:.4f}, Output Classes: {}, using: {}"
-			  .format(len(trainlist), epochs, train_batch_size,lr,outputsize,device ))
-	c3d = C3D(outputsize)
-	c3d.apply(UtilsPL.weights_init)
+                  .format(len(trainlist), epochs, train_batch_size,lr,outputsize,device ))
+	#c3d = C3D(outputsize)
+	c3d = resnext.resnet152(num_classes=outputsize,sample_size=200, sample_duration=20)
+       
+        #c3d.apply(UtilsPL.weights_init)
 	if use_cuda:
-		c3d.cuda()
+		c3d = c3d.cuda()
 		c3d = nn.DataParallel(c3d, device_ids=range(torch.cuda.device_count()))
-		cudnn.benchmark = True	
-	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr, weight_decay=0.0001)
+		#cudnn.benchmark = True	
+	optimizer = torch.optim.Adam(c3d.parameters(), lr=lr,weight_decay=0.001)
 	
 	
-	handlers= [(StepScheduler, 'lr',lr,lr,1,5)]
+	handlers= [(StepScheduler, 'lr',lr,lr,1,10)]
 	lrs=[]
 	model=c3d
 	train_loader, val_loader = planctonDataLoaders.get_data_loaders(trainlist,testlist,hierclasses,classes_transf,transfpos,pwargs,kwargs,**batchargs)
@@ -94,8 +100,9 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 			writer.add_scalar("training/loss", engine.state.output, engine.state.iteration)
 	
 	for handler_args in handlers:
-                (scheduler_cls, param_name, start_value, end_value, cycle_mult,cycle_siz) = handler_args
-                handler = scheduler_cls(optimizer, param_name, start_value, end_value,cycle_size= cycle_siz,cycle_mult=cycle_mult,save_history=True)
+		(scheduler_cls, param_name, start_value, end_value, cycle_mult,cycle_siz) = handler_args
+		handler = scheduler_cls(optimizer, param_name, start_value, end_value, cycle_size= cycle_siz,
+			    cycle_mult=cycle_mult,save_history=True)
 	trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
 	trainer.add_event_handler(Events.EPOCH_COMPLETED, save_lr)
  
@@ -129,7 +136,7 @@ def run(train_batch_size, val_batch_size, epochs, lr, momentum, log_interval, lo
 	
 	checkpoint_handler = ModelCheckpoint(checkpoint_model_dir, 'checkpoint',
                                      save_interval=checkpoint_interval,
-                                     n_saved=1000, require_empty=False, create_dir=True)
+                                     n_saved=10, require_empty=False, create_dir=True)
 
 	trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler,
                           to_save={'net': model})
@@ -146,22 +153,22 @@ if __name__ == "__main__":
 	
 	parser = ArgumentParser()
 	
-	parser.add_argument('--batch_size', type=int, default=20,
+	parser.add_argument('--batch_size', type=int, default=15,
                         help='input batch size for training (default: 20)')
-	parser.add_argument('--val_batch_size', type=int, default=20,
+	parser.add_argument('--val_batch_size', type=int, default=15,
                         help='input batch size for validation (default: 20)')
-	parser.add_argument('--epochs', type=int, default=1,
+	parser.add_argument('--epochs', type=int, default=5,
                         help='number of epochs to train (default: 1)')
 	parser.add_argument('--lr', type=float, default=0.001,
                         help='learning rate (default: 0.001)')
 	parser.add_argument('--momentum', type=float, default=0.9,
-                        help='Momentum (default: 0.9)')
+                        help='SGD momentum (default: 0.9)')
 	parser.add_argument('--log_interval', type=int, default=1000,
                         help='how many batches to wait before logging training status')
-	parser.add_argument("--log_dir", type=str, default="../logs/",
+	parser.add_argument("--log_dir", type=str, default="../logs/resnet50-2class",
                         help="log directory for Tensorboard log output")
-	parser.add_argument('--classif', type=int, default=3,
-                        help='Type of Classification (default:3 (155 Classes),2:(33 Classes), 1:(14 Classes), 0:(2 Classes)')
+	parser.add_argument('--classif', type=int, default=0,
+                        help='Type of Classification (default:2 (156 Classes), 0:(2 Classes)')
 	parser.add_argument("--checkpoint_model_dir", type=str, default='../tmp/checkpoints',
                                   help="path to folder where checkpoints of trained models will be saved")
 	parser.add_argument("--checkpoint_interval", type=int, default=1,

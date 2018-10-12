@@ -35,7 +35,7 @@ def weights_init(m):
 
 def ucf_collate(batch):
     label = torch.zeros(len(batch))
-    input1 = torch.zeros(len(batch),5, 16, 112, 112)
+    input1 = torch.zeros(len(batch),5, 20, 200, 200)
     for i in range(len(batch)):
         input_label = batch[i]
         label[i] = int(input_label[1])
